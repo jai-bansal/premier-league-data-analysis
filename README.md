@@ -9,7 +9,7 @@ The dataset contains data on the Premier League matches from the 2003/2004 seaso
 The data can be found at:
 http://www.football-data.co.uk/englandm.php
 
-The 'data' folder contains 1 file for each season. The 'data_aggregation.R' file creates a single data file from the season files. Running 'data_aggregation.R' yields 'premier_data.csv', which is used for the analysis.
+The 'data' folder contains 1 file for each season. It also contains 'notes.txt' which explains all variables in the data. The 'data_aggregation.R' file creates a single data file from the season files. Running 'data_aggregation.R' yields 'premier_data.csv', which is used for the analysis.
 
 #### License:
 GNU General Public License
