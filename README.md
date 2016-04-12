@@ -11,7 +11,7 @@ http://www.football-data.co.uk/englandm.php
 
 I downloaded the relevant data files from this site and renamed each file to indicate the season it represented.
 
-The 'data' folder contains 1 file for each season. It also contains 'notes.txt' which explains all variables in the data. The 'data_aggregation.R' file creates a single data file from the season files. Running 'data_aggregation.R' yields 'premier_data.csv', which is used for the analysis.
+The 'data' folder contains 1 file for each season. It also contains 'notes.txt' which explains all variables in the data. The 'data_aggregation.R' file creates a single data file from the season files. Running 'data_aggregation_and_cleaning.R' yields 'premier_data.csv', which is used for the analysis.
 
 #### License:
 GNU General Public License
