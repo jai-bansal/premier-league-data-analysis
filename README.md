@@ -13,8 +13,7 @@ I downloaded the relevant data files from this site and renamed each file to ind
 
 The 'data' folder contains 1 file for each season. It also contains 'notes.txt' which explains all variables in the data. The 'data_aggregation.R' file creates a single data file from the season files. Running 'data_aggregation_and_cleaning.R' yields 'premier_data.csv', which is used for the analysis.
 
-The analysis is conducted in 'premier_league_exploratory_analysis.R'. This file has detailed comments on the code behind the analysis.
-For output purposes, I've put the relevant parts of the analysis code and my own interpretations in 'premier_data_exploratory_analysis.Rmd'. The final output is in 'English Premier League Exploratory Analysis.pdf'. Note that I make some minor formatting and appearance changes between the RMarkdown output and the final PDF.
+The analysis is conducted in 'premier_league_exploratory_analysis.R'. This is actually the same analysis code as in 'premier_data_exploratory_analysis.Rmd'. I feel that including this file (without additional interpretation) can make the actual code easier to follow. For output purposes, I've put the relevant parts of the analysis code and my own interpretations in 'premier_data_exploratory_analysis.Rmd'. The final output is in 'English Premier League Exploratory Analysis.pdf'. Note that I make some minor formatting and appearance changes between the RMarkdown output and the final PDF.
 
 #### License:
 GNU General Public License
