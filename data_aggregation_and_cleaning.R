@@ -23,22 +23,25 @@ d5 = data.table(read.csv('data/07-08.csv',
 d6 = data.table(read.csv('data/08-09.csv', 
                          header = T, 
                          stringsAsFactors = F))
-d7 = data.table(read.csv('data/10-11.csv', 
+d7 = data.table(read.csv('data/09-10.csv', 
                          header = T, 
                          stringsAsFactors = F))
-d8 = data.table(read.csv('data/11-12.csv', 
+d8 = data.table(read.csv('data/10-11.csv', 
                          header = T, 
                          stringsAsFactors = F))
-d9 = data.table(read.csv('data/12-13.csv', 
+d9 = data.table(read.csv('data/11-12.csv', 
                          header = T, 
                          stringsAsFactors = F))
-d10 = data.table(read.csv('data/13-14.csv', 
+d10 = data.table(read.csv('data/12-13.csv', 
+                         header = T, 
+                         stringsAsFactors = F))
+d11 = data.table(read.csv('data/13-14.csv', 
                           header = T, 
                           stringsAsFactors = F))
-d11 = data.table(read.csv('data/14-15.csv', 
+d12 = data.table(read.csv('data/14-15.csv', 
                           header = T, 
                           stringsAsFactors = F))
-d12 = data.table(read.csv('data/15-16.csv', 
+d13 = data.table(read.csv('data/15-16.csv', 
                           header = T, 
                           stringsAsFactors = F))
 
@@ -59,6 +62,7 @@ d9 = d9[, .(Date, HomeTeam, AwayTeam, FTHG, FTAG, FTR, HTHG, HTAG, HTR, Referee,
 d10 = d10[, .(Date, HomeTeam, AwayTeam, FTHG, FTAG, FTR, HTHG, HTAG, HTR, Referee, HS, AS, HST, AST, HC, AC, HF, AF, HY, AY, HR, AR, B365H, B365D, B365A)]
 d11 = d11[, .(Date, HomeTeam, AwayTeam, FTHG, FTAG, FTR, HTHG, HTAG, HTR, Referee, HS, AS, HST, AST, HC, AC, HF, AF, HY, AY, HR, AR, B365H, B365D, B365A)]
 d12 = d12[, .(Date, HomeTeam, AwayTeam, FTHG, FTAG, FTR, HTHG, HTAG, HTR, Referee, HS, AS, HST, AST, HC, AC, HF, AF, HY, AY, HR, AR, B365H, B365D, B365A)]
+d13 = d13[, .(Date, HomeTeam, AwayTeam, FTHG, FTAG, FTR, HTHG, HTAG, HTR, Referee, HS, AS, HST, AST, HC, AC, HF, AF, HY, AY, HR, AR, B365H, B365D, B365A)]
 
 # Add a 'season_num' variable to denote the numerical order of each season being considered.
 d1$season_num = 1
@@ -73,9 +77,10 @@ d9$season_num = 9
 d10$season_num = 10
 d11$season_num = 11
 d12$season_num = 12
+d13$season_num = 13
 
 # Join data files together into single file.
-premier_data = rbind(d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12)
+premier_data = rbind(d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13)
 
 # Remove rows where "Date == ''". These rows are blank or NULL throughout.
 premier_data = premier_data[Date != '']
