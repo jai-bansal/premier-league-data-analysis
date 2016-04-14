@@ -34,8 +34,8 @@ This report conducts exploratory analysis using English Premier League match dat
 ### Relegation:
 
 At the end of each season, the bottom 3 teams in the standings are relegated to a lower division.
-The English Premier League (EPL) is the top English league, so teams cannot be 'promoted' up out of the league.
-Let's look at how many seasons the teams in our dataset have spent in the EPL.
+The English Premier League (EPL) is the top English league, so teams cannot be 'promoted' out of the league.
+I will look at how many seasons the teams in our dataset have spent in the EPL.
 
 ```{r relegation, echo = F}
   
@@ -56,13 +56,17 @@ Let's look at how many seasons the teams in our dataset have spent in the EPL.
 ```
 
 Out of `r length(unique(premier_data$HomeTeam))` teams in the data, 6 (`r round(100 * 6/38, 1)`%) only spent 1 year in the EPL.
-8 teams (`r round(100 * 8/38, 1)`%) spent 13 years, the longest possible time frame in this data set.
+8 teams (`r round(100 * 8/38, 1)`%) spent 13 years, the longest time possible in this data set.
 The average number of seasons spent in the EPL is `r round(mean(seasons$seasons_played), 1)`.
-Note that large numbers of teams played 13 seasons and 1 season, with relatively low numbers of teams for the numbers in between.
+Note that large numbers of teams played 13 seasons and 1 season, with relatively low numbers of teams for the number of seasons in between.
 
 This data implies that there are many teams that break into the EPL from a lower division...and are promptly relegated the following year.
 It also implies that there is a group of dominant teams that are rarely relegated.
 Looking at the clubs that played all 13 seasons in the EPL (`r seasons[seasons_played == 13]$HomeTeam`) reveals many famous (and wealthy) teams.
+
+**Further Exploration**:
+
+* Look for similarities among dominant teams and teams that only spent 1 season in the EPL.
 
 ### Best of the Best and Worst of the Best:
 
@@ -187,8 +191,119 @@ In this section, I plot the win percentages over time of 4 teams (any more than 
                                 size = 13), 
       legend.title = element_text(size = 12),
       legend.text = element_text(size = 12))
-
      
 ```
 
 All 4 of these teams are part of the dominant 8 that are never relegated in this data set. I find it surprising that Everton and Aston Villa (especially Aston Villa) are consistently below a win percentage of 50%. It seems that these clubs haven't done well recently, but haven't done poorly enough to be relegated. Finally, it's interesting that all 4 teams on the plot do worse, in some cases sharply, in the 2015-2016 season than the 2014-2015 season.
+
+**Further Exploration**:
+
+* Redo this analysis including more teams.
+
+### Clustering By Playing Style:
+
+In this section, I will use K-means to cluster all `r length(unique(premier_data$HomeTeam))` teams in the data by average fouls per game and average shots on net percentage per game. The latter quantity is computed by dividing the shots on net by total shots. I only cluster by two dimensions to allow easy visualization.
+
+```{r clustering, echo = F}
+   
+    # Clean up previous section artifacts.
+  rm(seasons, team_season_list, seasons_reshape)
+  
+  # Create data table for clustering analysis with 1 row per team.
+  cluster_data = data.table(team = unique(premier_data$HomeTeam), 
+                            home_games = rep(NA, length(unique(premier_data$HomeTeam))), 
+                            away_games = rep(NA, length(unique(premier_data$HomeTeam))),
+                            home_fouls = rep(NA, length(unique(premier_data$HomeTeam))),
+                            away_fouls = rep(NA, length(unique(premier_data$HomeTeam))),
+                            home_shots_on_target = rep(NA, length(unique(premier_data$HomeTeam))),
+                            away_shots_on_target = rep(NA, length(unique(premier_data$HomeTeam))),
+                            home_shots = rep(NA, length(unique(premier_data$HomeTeam))),
+                            away_shots = rep(NA, length(unique(premier_data$HomeTeam))))
+
+  # Fill in 'cluster_data'.
+  for (i in 1:nrow(cluster_data))
+    {
+    
+      cluster_data$home_games[i] = nrow(premier_data[HomeTeam == cluster_data$team[i]])
+      cluster_data$away_games[i] = nrow(premier_data[AwayTeam == cluster_data$team[i]])
+      cluster_data$home_fouls[i] = sum(premier_data[HomeTeam == cluster_data$team[i]]$HF) 
+      cluster_data$away_fouls[i] = sum(premier_data[AwayTeam == cluster_data$team[i]]$AF)
+      cluster_data$home_shots_on_target[i] = sum(premier_data[HomeTeam == cluster_data$team[i]]$HST)
+      cluster_data$away_shots_on_target[i] = sum(premier_data[AwayTeam == cluster_data$team[i]]$AST)
+      cluster_data$home_shots[i] = sum(premier_data[HomeTeam == cluster_data$team[i]]$HS)
+      cluster_data$away_shots[i] = sum(premier_data[AwayTeam == cluster_data$team[i]]$AS)
+  
+  }
+  
+  # Compute total games, fouls, shots on target, and shots (home quantity + away quantity).
+  cluster_data$games = cluster_data$home_games + cluster_data$away_games
+  cluster_data$fouls = cluster_data$home_fouls + cluster_data$away_fouls
+  cluster_data$shots_on_target = cluster_data$home_shots_on_target + cluster_data$away_shots_on_target
+  cluster_data$shots = cluster_data$home_shots + cluster_data$away_shots
+  
+  # Compute average fouls per game and average shot percentage per game for each team.
+  cluster_data$avg_fouls = cluster_data$fouls / cluster_data$games
+  cluster_data$avg_shots_on_target_percent = 100 * cluster_data$shots_on_target / cluster_data$shots
+  
+  # Scale 'avg_fouls' and 'avg_shots_on_target_percent'. This should be done prior to clustering.
+  # I do this separately so I can later access the mean and standard deviation of scaling.
+  avg_fouls_scaled = scale(cluster_data$avg_fouls)
+  avg_shots_on_target_percent_scaled = scale(cluster_data$avg_shots_on_target_percent)
+  
+  # Add 'avg_fouls_scaled' and 'avg_shots_on_target_percent_scaled' to 'cluster_data'.
+  cluster_data$avg_fouls_scaled = avg_fouls_scaled
+  cluster_data$avg_shots_on_target_percent_scaled = avg_shots_on_target_percent_scaled
+  
+  # Conduct K-means clustering with 4 clusters.
+  cluster_kmeans = kmeans(cluster_data[, .(avg_fouls_scaled, avg_shots_on_target_percent_scaled)], 
+                          centers = 4)
+  
+  # Convert cluster centers back into unscaled values.
+  cluster_centers = data.table(cluster_kmeans$centers)
+  cluster_centers$avg_fouls_scaled = (cluster_centers$avg_fouls_scaled * attr(avg_fouls_scaled, 'scaled:scale')) + 
+                                      attr(avg_fouls_scaled, 'scaled:center')
+  cluster_centers$avg_shots_on_target_percent_scaled = (cluster_centers$avg_shots_on_target_percent_scaled * attr(avg_shots_on_target_percent_scaled, 'scaled:scale')) + attr(avg_shots_on_target_percent_scaled, 'scaled:center')
+  
+  # Add clusters to 'cluster_data'.
+  cluster_data$clusters = cluster_kmeans$cluster
+  
+  # View cluster means.
+  cluster_centers$avg_fouls_scaled = round(cluster_centers$avg_fouls_scaled, 1)
+  cluster_centers$avg_shots_on_target_percent_scaled = round(cluster_centers$avg_shots_on_target_percent_scaled, 1)
+  setnames(cluster_centers, names(cluster_centers), c('Average Fouls', 'Avg. Shots on Net %'))
+  cluster_centers
+  
+  # Plot clusters.
+  ggplot(data = cluster_data[, .(avg_fouls, avg_shots_on_target_percent, clusters)], 
+         aes(x = avg_fouls, 
+             y = avg_shots_on_target_percent, 
+             group = as.character(clusters),
+             color = as.character(clusters))) +
+    geom_point(size = 2, 
+               aes(shape = as.character(clusters))) +
+    scale_color_manual(values = c('red', 'blue', 'yellow', 'black')) +
+    theme(axis.text.x = element_text(color = 'black', 
+                                     size = 13), 
+          axis.text.y = element_text(color = 'black', 
+                                     size = 13), 
+          axis.title.x = element_text(face = 'bold', 
+                                    size = 13),
+          axis.title.y = element_text(face = 'bold',
+                                      size = 13, 
+                                      vjust = 1),
+          axis.ticks = element_blank(),
+          plot.title = element_text(face = 'bold', 
+                                    size = 13)) +
+    guides(colour = F, 
+           shape = F) +
+    ggtitle('Clustered EPL Teams') +
+    xlab('Average Fouls Per Game') +
+    ylab('Avg. Shots on Net % Per Game')
+ 
+```
+
+Oddly enough, RMarkdown output has different colors/shapes in different positions everytime This needs to be filled in properly in the final version. The  <> cluster represents teams with many fouls and relatively high accuracy. The <> cluster commits less fouls than the blue cluster and has a slightly lower accuracy. The <> cluster is characterized by a lower shot accuracy. The <> cluster admittedly looks like a miscellaneous cluster, but is generally characterized by lower shot accuracy and fouls.
+
+**Further Exploration**:
+
+* Cluster over more dimensions.

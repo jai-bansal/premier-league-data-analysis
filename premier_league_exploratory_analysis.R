@@ -9,6 +9,8 @@
 library(data.table)
 library(ggplot2)
 library(reshape2)
+library(cluster)
+library(fpc)
 
 # Import data.
 premier_data = data.table(read.csv('premier_data.csv', 
@@ -185,4 +187,116 @@ premier_data$Date = as.Date(premier_data$Date,
                                 size = 13), 
       legend.title = element_text(size = 12),
       legend.text = element_text(size = 12))
+    
+#####
+# CLUSTERING TEAMS BY PLAYING STYLE.
+# In this section, I use K-means to cluster all 38 teams in the data set.
+# I cluster on fouls committed and percentage of shots on target.
+# I only use 2 variables to allow easy visualization.
+    
+  # Clean up previous section artifacts.
+  rm(seasons, team_season_list, seasons_reshape)
+  
+  # Create data table for clustering analysis with 1 row per team.
+  cluster_data = data.table(team = unique(premier_data$HomeTeam), 
+                            home_games = rep(NA, length(unique(premier_data$HomeTeam))), 
+                            away_games = rep(NA, length(unique(premier_data$HomeTeam))),
+                            home_fouls = rep(NA, length(unique(premier_data$HomeTeam))),
+                            away_fouls = rep(NA, length(unique(premier_data$HomeTeam))),
+                            home_shots_on_target = rep(NA, length(unique(premier_data$HomeTeam))),
+                            away_shots_on_target = rep(NA, length(unique(premier_data$HomeTeam))),
+                            home_shots = rep(NA, length(unique(premier_data$HomeTeam))),
+                            away_shots = rep(NA, length(unique(premier_data$HomeTeam))))
 
+  # Fill in 'cluster_data'.
+  for (i in 1:nrow(cluster_data))
+    {
+    
+      cluster_data$home_games[i] = nrow(premier_data[HomeTeam == cluster_data$team[i]])
+      cluster_data$away_games[i] = nrow(premier_data[AwayTeam == cluster_data$team[i]])
+      cluster_data$home_fouls[i] = sum(premier_data[HomeTeam == cluster_data$team[i]]$HF) 
+      cluster_data$away_fouls[i] = sum(premier_data[AwayTeam == cluster_data$team[i]]$AF)
+      cluster_data$home_shots_on_target[i] = sum(premier_data[HomeTeam == cluster_data$team[i]]$HST)
+      cluster_data$away_shots_on_target[i] = sum(premier_data[AwayTeam == cluster_data$team[i]]$AST)
+      cluster_data$home_shots[i] = sum(premier_data[HomeTeam == cluster_data$team[i]]$HS)
+      cluster_data$away_shots[i] = sum(premier_data[AwayTeam == cluster_data$team[i]]$AS)
+  
+  }
+  
+  # Compute total games, fouls, shots on target, and shots (home quantity + away quantity).
+  cluster_data$games = cluster_data$home_games + cluster_data$away_games
+  cluster_data$fouls = cluster_data$home_fouls + cluster_data$away_fouls
+  cluster_data$shots_on_target = cluster_data$home_shots_on_target + cluster_data$away_shots_on_target
+  cluster_data$shots = cluster_data$home_shots + cluster_data$away_shots
+  
+  # Compute average fouls per game and average shot percentage per game for each team.
+  cluster_data$avg_fouls = cluster_data$fouls / cluster_data$games
+  cluster_data$avg_shots_on_target_percent = 100 * cluster_data$shots_on_target / cluster_data$shots
+  
+  # Scale 'avg_fouls' and 'avg_shots_on_target_percent'. This should be done prior to clustering.
+  # I do this separately so I can later access the mean and standard deviation of scaling.
+  avg_fouls_scaled = scale(cluster_data$avg_fouls)
+  avg_shots_on_target_percent_scaled = scale(cluster_data$avg_shots_on_target_percent)
+  
+  # Add 'avg_fouls_scaled' and 'avg_shots_on_target_percent_scaled' to 'cluster_data'.
+  cluster_data$avg_fouls_scaled = avg_fouls_scaled
+  cluster_data$avg_shots_on_target_percent_scaled = avg_shots_on_target_percent_scaled
+  
+  # View 'elbow' plot to help decide how many clusters there should be.
+  # I actually think it should be four (high/low combinations of both variables).
+  # But I'll do this exercise anyway.
+  # This won't be in the RMarkdown document.
+  
+    # Create plot function.
+    elbow_plot = function(data, cluster_num = 15, seed = 1){
+               wss <- (nrow(data) - 1) * sum(apply(data, 2, var))
+               for (i in 2:cluster_num){
+                    set.seed(seed)
+                    wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+                plot(1:cluster_num, wss)}
+  
+    # View plot.
+    elbow_plot(cluster_data[, .(avg_fouls_scaled, avg_shots_on_target_percent_scaled)])
+  
+  # Conduct K-means clustering with 4 clusters.
+  cluster_kmeans = kmeans(cluster_data[, .(avg_fouls_scaled, avg_shots_on_target_percent_scaled)], 
+                          centers = 4)
+  
+  # Convert cluster centers back into unscaled values.
+  cluster_centers = data.table(cluster_kmeans$centers)
+  cluster_centers$avg_fouls_scaled = (cluster_centers$avg_fouls_scaled * attr(avg_fouls_scaled, 'scaled:scale')) + 
+                                      attr(avg_fouls_scaled, 'scaled:center')
+  cluster_centers$avg_shots_on_target_percent_scaled = (cluster_centers$avg_shots_on_target_percent_scaled * attr(avg_shots_on_target_percent_scaled, 'scaled:scale')) + 
+                                                        attr(avg_shots_on_target_percent_scaled, 'scaled:center')
+  
+  # Add clusters to 'cluster_data'.
+  cluster_data$clusters = cluster_kmeans$cluster
+  
+  # Plot clusters.
+ ggplot(data = cluster_data[, .(avg_fouls, avg_shots_on_target_percent, clusters)], 
+         aes(x = avg_fouls, 
+             y = avg_shots_on_target_percent, 
+             group = as.character(clusters),
+             color = as.character(clusters))) +
+    geom_point(size = 2, 
+               aes(shape = as.character(clusters))) +
+    scale_color_manual(values = c('red', 'blue', 'yellow', 'black')) +
+    theme(axis.text.x = element_text(color = 'black', 
+                                     size = 13), 
+          axis.text.y = element_text(color = 'black', 
+                                     size = 13), 
+          axis.title.x = element_text(face = 'bold', 
+                                    size = 13),
+          axis.title.y = element_text(face = 'bold',
+                                      size = 13, 
+                                      vjust = 1),
+          axis.ticks = element_blank(),
+          plot.title = element_text(face = 'bold', 
+                                    size = 13)) +
+    guides(colour = F, 
+           shape = F) +
+    ggtitle('Clustered EPL Teams') +
+    xlab('Average Fouls Per Game') +
+    ylab('Avg. Shots on Net % Per Game')
+ 
+  
