@@ -1,24 +1,32 @@
 ---
 title: "English Premier League Exploratory Analysis"
 author: "Jai D. Bansal"
-date: "April 11, 2016"
 output: word_document
 ---
 
 This report conducts exploratory analysis using English Premier League match data from the 2003/2004 season to the 2015/2016 season. The data can be obtained from: http://www.football-data.co.uk/englandm.php
 
-```{r prep_and_import, include = F, echo = F}
+```{r prep_import_and_clean, include = F, echo = F}
   
   # Load packages.
   library(data.table)
+  library(qdapRegex)
   library(ggplot2)
   library(reshape2)
 
   # Import data.
-  premier_data = data.table(read.csv('premier_data.csv', header = T, stringsAsFactors = F))
+  premier_data = data.table(read.csv('premier_data.csv', 
+                                     header = T, 
+                                     stringsAsFactors = F))
 
   # Change 'Date' to date format.
-  premier_data$Date = as.Date(premier_data$Date, '%d/%m/%y')
+  premier_data$Date = as.Date(premier_data$Date, 
+                              '%d/%m/%y')
+  
+  # Make all text fields lowercase and remove extra whitespace.
+  premier_data$HomeTeam = rm_white(tolower(premier_data$HomeTeam))
+  premier_data$AwayTeam = rm_white(tolower(premier_data$AwayTeam))
+  premier_data$Referee = rm_white(tolower(premier_data$Referee))
 
 ```
 
@@ -30,6 +38,9 @@ This report conducts exploratory analysis using English Premier League match dat
 * Number of Matches: `r nrow(premier_data)`
 * Number of Teams: `r length(unique(premier_data$HomeTeam))`
 * Number of Referees: `r length(unique(premier_data$Referee))`
+* % of Matches Won by Home Team: `r round(100 * nrow(premier_data[FTR == 'h']) / nrow(premier_data), 2)`
+* % of Matches Won by Away Team: `r round(100 * nrow(premier_data[FTR == 'a']) / nrow(premier_data), 2)`
+* % of Matches Ending in a Draw: `r round(100 * nrow(premier_data[FTR == 'd']) / nrow(premier_data), 2)`
 
 ### Relegation:
 
@@ -40,7 +51,9 @@ I will look at how many seasons the teams in our dataset have spent in the EPL.
 ```{r relegation, echo = F}
   
     # Count seasons played by each team.
-    premier_data[, seasons_played := length(unique(season_num)), by = 'HomeTeam']
+    premier_data[, 
+                 seasons_played := length(unique(season_num)), 
+                 by = 'HomeTeam']
   
     # Create unique table with 1 row per team.
     seasons = premier_data[, .(HomeTeam, seasons_played)]
@@ -48,7 +61,9 @@ I will look at how many seasons the teams in our dataset have spent in the EPL.
     
     # Create table with number of teams and how many seasons they played.
     seasons_result = data.table(table(seasons$seasons_played))
-    setnames(seasons_result, names(seasons_result), c('Seasons', 'Teams'))
+    setnames(seasons_result, 
+             names(seasons_result), 
+             c('Seasons', 'Teams'))
     
     # Show 'seasons_result'.
     print(seasons_result)
@@ -62,15 +77,15 @@ Note that large numbers of teams played 13 seasons and 1 season, with relatively
 
 This data implies that there are many teams that break into the EPL from a lower division...and are promptly relegated the following year.
 It also implies that there is a group of dominant teams that are rarely relegated.
-Looking at the clubs that played all 13 seasons in the EPL (`r seasons[seasons_played == 13]$HomeTeam`) reveals many famous (and wealthy) teams.
+Looking at the clubs that played all 13 seasons in the EPL (`r seasons[seasons_played == 13]$HomeTeam`) reveals many well-known (and wealthy) teams.
 
 **Further Exploration**:
 
-* Look for similarities among dominant teams and teams that only spent 1 season in the EPL.
+* Look for differences between teams that were promoted to the EPL and stayed there as opposed to teams that were promoted and then relegated the next year.
 
 ### Best of the Best and Worst of the Best:
 
-In this section, I plot the win percentages over time of 4 teams (any more than 4 is too cluttered). Win percentage is defined as (# of wins / # of matches). I only use teams that are in the data set for every season. This is an important bias. Teams that are in the data every season are consistently above a certain quality as they do not get relegated. One could call these the best teams. I will plot the top 2 teams (best of the best) and the worst 2 teams (worst of the best).
+In this section, I plot the win percentages over time of 4 teams (I only use 4 teams so the plot is readable). Win percentage is defined as (# of wins / # of matches). I only use teams that are in the data set for every season. This is an important bias. Teams that are in the data every season are consistently above a certain quality as they do not get relegated. Simply put, they are the best teams. I will plot the top 2 teams (best of the best) and the worst 2 teams (worst of the best).
 
 ```{r best_worst, fig.width = 6, fig.height = 4.5, echo = F}
    
@@ -78,11 +93,15 @@ In this section, I plot the win percentages over time of 4 teams (any more than 
     premier_data$winner = ifelse(premier_data$FTR == 'h', premier_data$HomeTeam, 
                                  ifelse(premier_data$FTR == 'a', premier_data$AwayTeam, 'draw'))
     
-    # Create 'team__season_list' of all teams in all games specified by season. This helps with counting below.
+    # Create 'team_season_list' of all teams in all games specified by season. This helps with counting below.
     home_team_seasons = premier_data[, .(HomeTeam, season_num)]
     away_team_seasons = premier_data[, .(AwayTeam, season_num)]
-    setnames(home_team_seasons, names(home_team_seasons), c('team', 'season_num'))
-    setnames(away_team_seasons, names(away_team_seasons), c('team', 'season_num'))
+    setnames(home_team_seasons, 
+             names(home_team_seasons), 
+             c('team', 'season_num'))
+    setnames(away_team_seasons, 
+             names(away_team_seasons), 
+             c('team', 'season_num'))
     team_season_list = rbind(home_team_seasons, away_team_seasons)
     rm(home_team_seasons, away_team_seasons)
 
@@ -194,15 +213,15 @@ In this section, I plot the win percentages over time of 4 teams (any more than 
      
 ```
 
-All 4 of these teams are part of the dominant 8 that are never relegated in this data set. I find it surprising that Everton and Aston Villa (especially Aston Villa) are consistently below a win percentage of 50%. It seems that these clubs haven't done well recently, but haven't done poorly enough to be relegated. Finally, it's interesting that all 4 teams on the plot do worse, in some cases sharply, in the 2015-2016 season than the 2014-2015 season.
+All 4 of these teams are part of the dominant 8 that are never relegated in this data set. I find it surprising that Everton and Aston Villa (especially Aston Villa) are consistently below a win percentage of 50%. It seems that these clubs haven't done well recently, but haven't done poorly enough to be relegated. Finally, it's interesting that all 4 teams on the plot do worse, in some cases much worse, in the 2015-2016 season than the 2014-2015 season.
 
 **Further Exploration**:
 
-* Redo this analysis including more teams.
+* Conduct this analysis with more teams.
 
 ### Clustering By Playing Style:
 
-In this section, I will use K-means to cluster all `r length(unique(premier_data$HomeTeam))` teams in the data by average fouls per game and average shots on net percentage per game. The latter quantity is computed by dividing the shots on net by total shots. I only cluster by two dimensions to allow easy visualization.
+In this section, I will K-means to cluster all `r length(unique(premier_data$HomeTeam))` teams in the data by average fouls per game and average shots on net percentage per game. The latter quantity is computed by dividing the shots on net by total shots. I only cluster by two dimensions to allow easy visualization. Since different teams have spent different amounts of time in the EPL, it's important to use average quantities (and not totals).
 
 ```{r clustering, echo = F}
    
@@ -302,8 +321,69 @@ In this section, I will use K-means to cluster all `r length(unique(premier_data
  
 ```
 
-Oddly enough, RMarkdown output has different colors/shapes in different positions everytime This needs to be filled in properly in the final version. The  <> cluster represents teams with many fouls and relatively high accuracy. The <> cluster commits less fouls than the blue cluster and has a slightly lower accuracy. The <> cluster is characterized by a lower shot accuracy. The <> cluster admittedly looks like a miscellaneous cluster, but is generally characterized by lower shot accuracy and fouls.
+Oddly enough, RMarkdown output has different colors/shapes in different positions everytime This needs to be filled in properly in the final version. The  <> cluster represents teams with many fouls and relatively high shot accuracy. The <> cluster commits less fouls than the blue cluster and has a slightly lower accuracy. The <> cluster is characterized by a lower shot accuracy. The <> cluster admittedly looks like a miscellaneous cluster, but is generally characterized by lower shot accuracy and fouls.
 
 **Further Exploration**:
 
-* Cluster over more dimensions.
+* Add more dimensions to the clustering.
+
+### Match Outcome Prediction:
+
+In this section, I predict the outcome of matches (home win, away win, draw).   
+I use a variety of features (wins, average goals per match, average on-target shots per match, average corner kicks per match, average fouls per match, average yellow cards per match, average red cards per match) from the **same season** only.   
+Each feature is computed for the home and away teams of the match.
+For example, suppose team A is playing team B in season 2. I would compute all features for both teams using only previous matches in season 2.   
+This method means that I cannot obtain predictions for a team's 1st match of the season.  
+For a team's 2nd match of the season, I will obtain predictions using only data from that team's 1st match.
+For a team's 10th match, I obtain predictions using data from the 1st 9 matches.   
+So, each team's features are being updated every match.
+
+```{r clustering, echo = F}
+  
+  # Remove unneeded objects:
+  rm(avg_fouls_scaled, avg_shots_on_target_percent_scaled, cluster_centers, cluster_data, seasons_result, cluster_kmeans, i)
+  
+  # Pre-allocate features.
+  # They are all NULL for now.
+  premier_data$home_wins = rep(NA,                          # home team wins
+                               nrow(premier_data))
+  premier_data$away_wins = rep(NA,                          # away team wins
+                               nrow(premier_data))
+  premier_data$home_avg_goals = rep(NA,                     # home team average goals per match
+                                    nrow(premier_data))
+  premier_data$away_avg_goals = rep(NA,                     # away team average goals per match
+                                    nrow(premier_data))
+  premier_data$home_avg_sot = rep(NA,                       # home team average shots on target per match
+                                  nrow(premier_data))
+  premier_data$away_avg_sot = rep(NA,                       # away team average shots on target per match
+                                  nrow(premier_data))
+  premier_data$home_avg_corner = rep(NA,                    # home team average corner kicks per match
+                                     nrow(premier_data))
+  premier_data$away_avg_corner = rep(NA,                    # away team average corner kicks per match
+                                     nrow(premier_data))
+  premier_data$home_avg_foul = rep(NA,                      # home team average fouls per match
+                                   nrow(premier_data))
+  premier_data$away_avg_foul = rep(NA,                      # away team average fouls per match
+                                   nrow(premier_data))
+  premier_data$home_avg_yellow = rep(NA,                    # home team average yellow cards per match
+                                     nrow(premier_data))
+  premier_data$away_avg_yellow = rep(NA,                    # away team average yellow cards per match
+                                     nrow(premier_data))
+  premier_data$home_avg_red = rep(NA,                       # home team average red cards per match
+                                     nrow(premier_data))
+  premier_data$away_avg_red = rep(NA,                       # away team average red cards per match
+                                     nrow(premier_data))
+  
+  # Add features.
+  for (i in 1:max(premier_data$season_num))
+    {
+       
+      premier_data$home_wins =  sum(premier_data[HomeTeam == season_num == i]$FTHG)
+       
+    }
+    
+    # Add 'season_wins_to_date'.
+    premier_data$
+  
+```
+   
