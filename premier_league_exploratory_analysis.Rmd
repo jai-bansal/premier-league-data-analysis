@@ -20,15 +20,50 @@ This report conducts exploratory analysis using English Premier League match dat
                                      stringsAsFactors = F))
 
   # Change 'Date' to date format.
+  # This was done in 'data_aggregation_and_cleaning.R' but must be done again since 'Date' gets imported as a 'character' vector.
   premier_data$Date = as.Date(premier_data$Date, 
-                              '%d/%m/%y')
+                              '%Y-%m-%d')
   
   # Make all text fields lowercase and remove extra whitespace.
   premier_data$HomeTeam = rm_white(tolower(premier_data$HomeTeam))
   premier_data$AwayTeam = rm_white(tolower(premier_data$AwayTeam))
   premier_data$Referee = rm_white(tolower(premier_data$Referee))
 
+  # Remove features from 'premier_data' and put them into 'feature_data'.
+  # 'feature_data' is used in the 'Match Outcome Prediction' section.
+  # I do this to remove clutter and allow the data to be viewed more easily.
+  feature_data = premier_data[, .(FTR, home_team_wins, away_team_wins, home_avg_goals, away_avg_goals, home_avg_sot, away_avg_sot, home_avg_corner, away_avg_corner, home_avg_foul, away_avg_foul, home_avg_yellow, away_avg_yellow, home_avg_red, away_avg_red)]
+  premier_data = premier_data[, .(Date, HomeTeam, AwayTeam, FTHG, FTAG, FTR, Referee, HS, AS, HST, AST, HC, AC, HF, AF, HY, AY, HR, AR, season_num)]
+
+
 ```
+
+Below is a sample of the data and some summary statistics. I've removed columns that aren't used in the analysis (half time goals and results, total shots, and some betting odds).   
+These might be used in future iterations.
+
+### Data Sample:
+
+```{r view_data, echo = F}
+
+  # View data sample.
+  head(premier_data)
+
+```
+
+The abbreviated columns stand for:
+* FTHG: home team goals at end of match
+* FTAG: away team goals at end of match
+* FTR: match result ('h' denotes home team victory, 'a' denotes away team victory, 'd' denotes draw)
+* HST: home team shots on target
+* AST: away team shots on target
+* HC: home team corner kicks
+* AC: away team corner kicks
+* HF: home team fouls
+* AF: away team fouls
+* HY: home team yellow cards
+* AY: away team yellow cards
+* HR: home team red cards
+* AR: away team red cards
 
 ### Summary Statistics:
 
@@ -139,6 +174,9 @@ In this section, I plot the win percentages over time of 4 teams (I only use 4 t
                                   nrow(seasons))
     
     # Fill in all empty 'season' values.
+    # I use a loop here (and few other times throughout the analysis).
+    # Vectorized operations are much faster in R, but the structure of the data makes them challenging to implement.
+    # The data set is small enough that running loops seems to be manageable.
     for (i in 1:nrow(seasons))
       {
         
@@ -253,6 +291,7 @@ In this section, I will K-means to cluster all `r length(unique(premier_data$Hom
       cluster_data$away_shots[i] = sum(premier_data[AwayTeam == cluster_data$team[i]]$AS)
   
   }
+  rm(i)
   
   # Compute total games, fouls, shots on target, and shots (home quantity + away quantity).
   cluster_data$games = cluster_data$home_games + cluster_data$away_games
@@ -338,52 +377,10 @@ For a team's 2nd match of the season, I will obtain predictions using only data 
 For a team's 10th match, I obtain predictions using data from the 1st 9 matches.   
 So, each team's features are being updated every match.
 
-```{r clustering, echo = F}
+```{r match_outcome_prediction, echo = F}
   
   # Remove unneeded objects:
-  rm(avg_fouls_scaled, avg_shots_on_target_percent_scaled, cluster_centers, cluster_data, seasons_result, cluster_kmeans, i)
-  
-  # Pre-allocate features.
-  # They are all NULL for now.
-  premier_data$home_wins = rep(NA,                          # home team wins
-                               nrow(premier_data))
-  premier_data$away_wins = rep(NA,                          # away team wins
-                               nrow(premier_data))
-  premier_data$home_avg_goals = rep(NA,                     # home team average goals per match
-                                    nrow(premier_data))
-  premier_data$away_avg_goals = rep(NA,                     # away team average goals per match
-                                    nrow(premier_data))
-  premier_data$home_avg_sot = rep(NA,                       # home team average shots on target per match
-                                  nrow(premier_data))
-  premier_data$away_avg_sot = rep(NA,                       # away team average shots on target per match
-                                  nrow(premier_data))
-  premier_data$home_avg_corner = rep(NA,                    # home team average corner kicks per match
-                                     nrow(premier_data))
-  premier_data$away_avg_corner = rep(NA,                    # away team average corner kicks per match
-                                     nrow(premier_data))
-  premier_data$home_avg_foul = rep(NA,                      # home team average fouls per match
-                                   nrow(premier_data))
-  premier_data$away_avg_foul = rep(NA,                      # away team average fouls per match
-                                   nrow(premier_data))
-  premier_data$home_avg_yellow = rep(NA,                    # home team average yellow cards per match
-                                     nrow(premier_data))
-  premier_data$away_avg_yellow = rep(NA,                    # away team average yellow cards per match
-                                     nrow(premier_data))
-  premier_data$home_avg_red = rep(NA,                       # home team average red cards per match
-                                     nrow(premier_data))
-  premier_data$away_avg_red = rep(NA,                       # away team average red cards per match
-                                     nrow(premier_data))
-  
-  # Add features.
-  for (i in 1:max(premier_data$season_num))
-    {
-       
-      premier_data$home_wins =  sum(premier_data[HomeTeam == season_num == i]$FTHG)
-       
-    }
-    
-    # Add 'season_wins_to_date'.
-    premier_data$
-  
+  rm(avg_fouls_scaled, avg_shots_on_target_percent_scaled, cluster_centers, cluster_data, seasons_result, cluster_kmeans)
+
 ```
    
