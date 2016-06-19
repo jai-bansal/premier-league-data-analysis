@@ -4,7 +4,10 @@ author: "Jai D. Bansal"
 output: word_document
 ---
 
+
 This report conducts exploratory analysis using English Premier League match data from the 2003/2004 season to the 2015/2016 season. The data can be obtained from: http://www.football-data.co.uk/englandm.php
+
+This document contains result, plots, and interpretation. The underlying code is in 'premier_league_exploratory_analysis.Rmd'.
 
 ```{r prep_import_and_clean, include = F, echo = F}
   
@@ -13,8 +16,12 @@ This report conducts exploratory analysis using English Premier League match dat
   library(qdapRegex)
   library(ggplot2)
   library(reshape2)
+  library(randomForest)
+  library(caret)
+  library(e1071)
 
   # Import data.
+  # The working directory should be the 'premier-league-data-analysis' folder.
   premier_data = data.table(read.csv('premier_data.csv', 
                                      header = T, 
                                      stringsAsFactors = F))
@@ -32,38 +39,40 @@ This report conducts exploratory analysis using English Premier League match dat
   # Remove features from 'premier_data' and put them into 'feature_data'.
   # 'feature_data' is used in the 'Match Outcome Prediction' section.
   # I do this to remove clutter and allow the data to be viewed more easily.
-  feature_data = premier_data[, .(FTR, home_team_wins, away_team_wins, home_avg_goals, away_avg_goals, home_avg_sot, away_avg_sot, home_avg_corner, away_avg_corner, home_avg_foul, away_avg_foul, home_avg_yellow, away_avg_yellow, home_avg_red, away_avg_red)]
+  feature_data = premier_data[, .(FTR, home_team_wins, away_team_wins, home_avg_goals, away_avg_goals, home_avg_sot, away_avg_sot, home_avg_corner, away_avg_corner, home_avg_foul, away_avg_foul, home_avg_yellow, away_avg_yellow, home_avg_red, away_avg_red, B365H, B365D, B365A)]
   premier_data = premier_data[, .(Date, HomeTeam, AwayTeam, FTHG, FTAG, FTR, Referee, HS, AS, HST, AST, HC, AC, HF, AF, HY, AY, HR, AR, season_num)]
-
 
 ```
 
 Below is a sample of the data and some summary statistics. I've removed columns that aren't used in the analysis (half time goals and results, total shots, and some betting odds).   
 These might be used in future iterations.
 
+
 ### Data Sample:
 
 ```{r view_data, echo = F}
 
   # View data sample.
-  head(premier_data)
+  head(premier_data, 3)
 
 ```
 
+
 The abbreviated columns stand for:
-* FTHG: home team goals at end of match
-* FTAG: away team goals at end of match
-* FTR: match result ('h' denotes home team victory, 'a' denotes away team victory, 'd' denotes draw)
-* HST: home team shots on target
-* AST: away team shots on target
-* HC: home team corner kicks
-* AC: away team corner kicks
-* HF: home team fouls
-* AF: away team fouls
-* HY: home team yellow cards
-* AY: away team yellow cards
-* HR: home team red cards
-* AR: away team red cards
+* FTHG: home team goals at end of match   
+* FTAG: away team goals at end of match   
+* FTR: match result ([h, a, d] denote [home team victory, away team victory, draw] respectively)   
+* HST: home team shots on target   
+* AST: away team shots on target   
+* HC: home team corner kicks   
+* AC: away team corner kicks   
+* HF: home team fouls   
+* AF: away team fouls   
+* HY: home team yellow cards   
+* AY: away team yellow cards   
+* HR: home team red cards   
+* AR: away team red cards   
+* season_num: I added this in 'data_aggregation_and_cleaning.R' to indicate which season a match occurred in
 
 ### Summary Statistics:
 
@@ -83,23 +92,30 @@ At the end of each season, the bottom 3 teams in the standings are relegated to 
 The English Premier League (EPL) is the top English league, so teams cannot be 'promoted' out of the league.
 I will look at how many seasons the teams in our dataset have spent in the EPL.
 
-```{r relegation, echo = F}
+```{r relegation_1, echo = T, include = F}
   
+    # I need to do this section in 2 chunks to get the output correct.
+
     # Count seasons played by each team.
     premier_data[, 
                  seasons_played := length(unique(season_num)), 
                  by = 'HomeTeam']
-  
+
+```
+
+```{r relegation_2, echo = F}
+
     # Create unique table with 1 row per team.
     seasons = premier_data[, .(HomeTeam, seasons_played)]
     seasons = unique(seasons)
     
     # Create table with number of teams and how many seasons they played.
-    seasons_result = data.table(table(seasons$seasons_played))
+    # I use 'data.frame' here instead of 'data.table' to get the output to look how I want it.
+    seasons_result = data.frame(table(seasons$seasons_played))
     setnames(seasons_result, 
              names(seasons_result), 
              c('Seasons', 'Teams'))
-    
+
     # Show 'seasons_result'.
     print(seasons_result)
     
@@ -368,19 +384,150 @@ Oddly enough, RMarkdown output has different colors/shapes in different position
 
 ### Match Outcome Prediction:
 
-In this section, I predict the outcome of matches (home win, away win, draw).   
-I use a variety of features (wins, average goals per match, average on-target shots per match, average corner kicks per match, average fouls per match, average yellow cards per match, average red cards per match) from the **same season** only.   
+In this section, I predict the outcome of matches (home win, away win, draw) using a random forest.   
+I use features (wins, average goals per match, average on-target shots per match, average corner kicks per match, average fouls per match, average yellow cards per match, average red cards per match) from the **same season** only.   
 Each feature is computed for the home and away teams of the match.
+
 For example, suppose team A is playing team B in season 2. I would compute all features for both teams using only previous matches in season 2.   
 This method means that I cannot obtain predictions for a team's 1st match of the season.  
 For a team's 2nd match of the season, I will obtain predictions using only data from that team's 1st match.
 For a team's 10th match, I obtain predictions using data from the 1st 9 matches.   
 So, each team's features are being updated every match.
 
-```{r match_outcome_prediction, echo = F}
+The 'randomforest' package provides a graphic showing which features are the most important according to 2 different metrics.
+
+```{r match_outcome_prediction_initial, echo = F}
   
   # Remove unneeded objects:
   rm(avg_fouls_scaled, avg_shots_on_target_percent_scaled, cluster_centers, cluster_data, seasons_result, cluster_kmeans)
+
+  # This section uses 'feature_data'.
+  # Recall that, for each match, features from previous matches in the same season for the relevant teams are used for prediction.
+  # Thus, for a team's first match of the season, no prediction is possible.
+  # I remove these rows from 'feature_data'.
+  feature_data = feature_data[is.na(home_avg_goals) == F & is.na(away_avg_goals) == F]
+
+  # For classification, 'feature_data$FTR' must be of type 'factor'.
+  feature_data$FTR = as.factor(feature_data$FTR)
+
+  # Create training and test sets from 'feature_data'.
+  # I use ~70% of the data for training.
+  # The remaining ~25% of the data is used as a test set.
+  
+    # Randomly choose rows to be in training set.
+    training_rows = sample(1:nrow(feature_data), 
+                           round(0.70 * nrow(feature_data)), 
+                           replace = F)
+
+    # Create training and test sets.
+    feature_data_train = feature_data[training_rows]
+    feature_data_test = feature_data[-training_rows]
+
+  # Specify model.
+  match_model = FTR ~.
+
+  # Set seed for reproducibility.
+  set.seed(1234)
+
+  # Create random forest.
+  match_rf = randomForest(match_model, 
+                          data = feature_data_train,
+                          ntree = 250, 
+                          importance = T)
+
+  # Add OOB (out-of-bag) training set predictions to 'feature_data_train'.
+  # The OOB score can be substituted for a cross validation score when using random forest.
+  feature_data_train$oob_pred = match_rf$predicted
+
+  # Generate predictions for training and test sets.
+  feature_data_train$train_pred = data.table(predict(match_rf, 
+                                               newdata = feature_data_train, 
+                                               type = 'response'))
+  feature_data_test$test_pred = data.table(predict(match_rf, 
+                                               newdata = feature_data_test, 
+                                               type = 'response'))
+
+  varImpPlot(match_rf)
+
+```
+
+Creating a random forest out of the box, I obtain:   
+- training set error of `r 100 * round(nrow(feature_data_train[FTR != train_pred]) / nrow(feature_data_train), 4)`%   
+- OOB (out-of-bag) sample score `r 100 * round(nrow(feature_data_train[FTR != oob_pred]) / nrow(feature_data_train), 4)`% (I use this as a cross-validation score)   
+- test set error of `r 100 * round(nrow(feature_data_test[FTR != test_pred]) / nrow(feature_data_test), 4)`%
+
+There are 2 'null' models I compare against:   
+* predict a home team win every time (this yields an accuracy of `r 100 * round(nrow(feature_data_test[FTR != 'h']) / nrow(feature_data_test), 4)`% on the test set)
+* use betting odds features ([B365H, B365A, B365D] are the odds of a [home win, away win, draw] respectively). I take the which ever is highest as the match prediction.
+
+So, the random forest model is slightly better than the null model. Below, I try to improve on the inital random forest model using feature selection and parameter tuning.
+
+```{r feature_selection, echo = F}
+
+  # This section is commented out because it takes too long to run every time.
+  # I include findings from when this code was run, it's just not run every time.
+
+  # Set seed for reproducibility.
+  #set.seed(1234)
+
+  # Define the control function for random forest functions.
+  # This will be used to specify some of the parameters of the feature selection.
+  #control = rfeControl(functions = rfFuncs,             # random forest functions
+  #                   method = 'cv',                     # cross validation
+  #                   number = 5, ,                      # number of folds
+  #                   allowParallel = T, 
+  #                   verbose = T)
+
+  # Conduct backwards recursive feature selection.
+  #results = rfe(x = feature_data_train[, .(home_team_wins, away_team_wins, home_avg_goals, away_avg_goals, home_avg_sot, away_avg_sot, home_avg_corner, 
+  #                                       away_avg_corner, home_avg_foul, away_avg_foul, home_avg_yellow, away_avg_yellow, home_avg_red, away_avg_red)], 
+  #              y = feature_data_train$FTR, 
+  #              sizes = c(1:14), 
+  #              rfeControl = control)
+
+  # View plot of results.
+  #plot(results)
+
+  # See the best predictors
+  #predictors(results)
+
+```
+
+Using backwards recursive feature selection, I see that using 10 features results in a slightly more accurate model
+than using the entire feature set. I will use this modified model for parameter tuning.
+
+Note that I ran the feature selection code and noted the results, but it is now commented out. It makes the generation of this document take way too long.
+
+The 4 features that will be removed are yellow and red cards (for both the home and away teams). Since any yellow/red card is also a foul, much of these features' information may be contained in 'home_avg_foul' and 'away_avg_foul'. UPDATE THIS
+
+```{r parameter_tuning, echo = F}
+
+  # Specify model found from feature selection.
+  best_model = FTR ~ home_team_wins + away_team_wins + home_avg_goals + away_avg_goals + home_avg_sot + away_avg_sot + home_avg_corner + away_avg_corner + home_avg_foul + away_avg_foul
+
+  # Set seed for reproducibility.
+  set.seed(1234)
+
+  # Create random forest.
+  best_match_rf = randomForest(best_model, 
+                               data = feature_data_train,
+                          ntree = 250, 
+                          importance = T)
+
+  # Add OOB (out-of-bag) training set predictions to 'feature_data_train'.
+  # The OOB score can be substituted for a cross validation score when using random forest.
+  feature_data_train$oob_pred = match_rf$predicted
+
+  # Generate predictions for training and test sets.
+  feature_data_train$train_pred = data.table(predict(match_rf, 
+                                               newdata = feature_data_train, 
+                                               type = 'response'))
+  feature_data_test$test_pred = data.table(predict(match_rf, 
+                                               newdata = feature_data_test, 
+                                               type = 'response'))
+
+  varImpPlot(match_rf)
+
 
 ```
    
