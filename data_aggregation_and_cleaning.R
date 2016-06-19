@@ -1,5 +1,6 @@
 # This script takes the individual data files for each season and aggregates them
 # into a single file.
+# The working directory when running this file should be the 'premier-league-data-analysis' folder.
 
 # Then, it computes features that are used in the 'Match Outcome Prediction' section.
 # I use a variety of features (wins, average goals per match, average on-target shots per match, average corner kicks per match, 
@@ -160,6 +161,9 @@
   # This is a big, ugly, dense loop and hopefully the last one.
   for (i in 1:nrow(premier_data))
     {
+    
+      # Keep track of progress.
+      print(i)
       
       # Create 'helper' data table.
       # For any match m, 'helper' contains all matches that satisfy all of the following conditions:
