@@ -454,7 +454,7 @@ The 'randomforest' package provides a graphic showing which features are the mos
 
 Creating a random forest out of the box, I obtain:   
 - training set error of `r 100 * round(nrow(feature_data_train[FTR != train_pred]) / nrow(feature_data_train), 4)`%   
-- OOB (out-of-bag) sample score `r 100 * round(nrow(feature_data_train[FTR != oob_pred]) / nrow(feature_data_train), 4)`% (I use this as a cross-validation score)   
+- OOB (out-of-bag) sample error `r 100 * round(nrow(feature_data_train[FTR != oob_pred]) / nrow(feature_data_train), 4)`% (I use this as a cross-validation error)   
 - test set error of `r 100 * round(nrow(feature_data_test[FTR != test_pred]) / nrow(feature_data_test), 4)`%
 
 The baseline model I compare against is predicting a home team win every time (this yields an error of `r 100 * round(nrow(feature_data_test[FTR != 'h']) / nrow(feature_data_test), 4)`% on the test set)
