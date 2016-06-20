@@ -5,9 +5,9 @@ output: word_document
 ---
 
 
-This report conducts exploratory analysis using English Premier League match data from the 2003/2004 season to the 2015/2016 season. The data can be obtained from: http://www.football-data.co.uk/englandm.php
+I've played soccer for over a decade, so I thought it would be fun to do some analysis on professional soccer matches. I was able to find English Premier League match data from the 2003/2004 season to the 2015/2016 season (_http://www.football-data.co.uk/englandm.php_)
 
-This document contains result, plots, and interpretation. The underlying code is in 'premier_league_exploratory_analysis.Rmd'.
+This document contains results, plots, and my own interpretation. The underlying code is suppressed for clarity but can be viewed in _premier_league_exploratory_analysis.Rmd_.
 
 ```{r prep_import_and_clean, include = F, echo = F}
   
@@ -44,11 +44,11 @@ This document contains result, plots, and interpretation. The underlying code is
 
 ```
 
-Below is a sample of the data and some summary statistics. I've removed columns that aren't used in the analysis (half time goals and results, total shots, and some betting odds).   
+### DATA SAMPLE:
+
+Here's a sample of the data and what all the columns stand for. This is a pretty rich data set containing not just final scores, but also some deeper metrics.   
+I've removed columns that aren't used in the analysis (half time goals and results, total shots, and some betting odds).    
 These might be used in future iterations.
-
-
-### Data Sample:
 
 ```{r view_data, echo = F}
 
@@ -57,24 +57,23 @@ These might be used in future iterations.
 
 ```
 
+The abbreviated columns stand for:   
+* __FTHG__: home team goals at end of match   
+* __FTAG__: away team goals at end of match   
+* __FTR__: match result ([h, a, d] denote [home team victory, away team victory, draw] respectively)   
+* __HST__: home team shots on target   
+* __AST__: away team shots on target   
+* __HC__: home team corner kicks   
+* __AC__: away team corner kicks   
+* __HF__: home team fouls   
+* __AF__: away team fouls   
+* __HY__: home team yellow cards   
+* __AY__: away team yellow cards   
+* __HR__: home team red cards   
+* __AR__: away team red cards   
+* __season_num__: added in _data_aggregation_and_cleaning.R_ to indicate which season a match occurred in
 
-The abbreviated columns stand for:
-* FTHG: home team goals at end of match   
-* FTAG: away team goals at end of match   
-* FTR: match result ([h, a, d] denote [home team victory, away team victory, draw] respectively)   
-* HST: home team shots on target   
-* AST: away team shots on target   
-* HC: home team corner kicks   
-* AC: away team corner kicks   
-* HF: home team fouls   
-* AF: away team fouls   
-* HY: home team yellow cards   
-* AY: away team yellow cards   
-* HR: home team red cards   
-* AR: away team red cards   
-* season_num: I added this in 'data_aggregation_and_cleaning.R' to indicate which season a match occurred in
-
-### Summary Statistics:
+### SUMMARY STATISTICS:
 
 * First Match Date: `r min(premier_data$Date)`
 * Last Match Date: `r max(premier_data$Date)`
@@ -86,13 +85,13 @@ The abbreviated columns stand for:
 * % of Matches Won by Away Team: `r round(100 * nrow(premier_data[FTR == 'a']) / nrow(premier_data), 2)`
 * % of Matches Ending in a Draw: `r round(100 * nrow(premier_data[FTR == 'd']) / nrow(premier_data), 2)`
 
-### Relegation:
+### RELEGATION:
 
-At the end of each season, the bottom 3 teams in the standings are relegated to a lower division.
+At the end of each season, the bottom 3 teams in the standings are relegated to a lower division (the English Football League Championship).
 The English Premier League (EPL) is the top English league, so teams cannot be 'promoted' out of the league.
-I will look at how many seasons the teams in our dataset have spent in the EPL.
+Below is the distribution of how many seasons the teams in our dataset have spent in the EPL.
 
-```{r relegation_1, echo = T, include = F}
+```{r relegation_1, echo = F, include = F}
   
     # I need to do this section in 2 chunks to get the output correct.
 
@@ -121,24 +120,107 @@ I will look at how many seasons the teams in our dataset have spent in the EPL.
     
 ```
 
-Out of `r length(unique(premier_data$HomeTeam))` teams in the data, 6 (`r round(100 * 6/38, 1)`%) only spent 1 year in the EPL.
+Out of `r length(unique(premier_data$HomeTeam))` teams, 6 (`r round(100 * 6/38, 1)`%) only spent 1 year in the EPL.
 8 teams (`r round(100 * 8/38, 1)`%) spent 13 years, the longest time possible in this data set.
-The average number of seasons spent in the EPL is `r round(mean(seasons$seasons_played), 1)`.
-Note that large numbers of teams played 13 seasons and 1 season, with relatively low numbers of teams for the number of seasons in between.
+The average number of seasons in the EPL is `r round(mean(seasons$seasons_played), 1)`.
+It's interesting that relatively many clubs played 13 seasons and 1 season in the EPL, with relatively few clubs playing the number of seasons in between.
 
-This data implies that there are many teams that break into the EPL from a lower division...and are promptly relegated the following year.
-It also implies that there is a group of dominant teams that are rarely relegated.
-Looking at the clubs that played all 13 seasons in the EPL (`r seasons[seasons_played == 13]$HomeTeam`) reveals many well-known (and wealthy) teams.
+So, there are many teams that break into the EPL from division beneath...and are promptly relegated the following year. Getting to the EPL is apparently on the first part of the battle.    
+On the other end, there seem to be a group of dominant teams that are rarely relegated.
+Looking at these clubs that played all 13 seasons in the EPL (`r seasons[seasons_played == 13]$HomeTeam`) reveals many well-known (and wealthy) teams.
 
 **Further Exploration**:
 
-* Look for differences between teams that were promoted to the EPL and stayed there as opposed to teams that were promoted and then relegated the next year.
+* What are the differences between teams that were promoted to the EPL and stayed there as opposed to teams that were promoted and then relegated the next year?
+* What features distinguish the teams that are rarely/never relegated? Are they in this data set or external?
 
-### Best of the Best and Worst of the Best:
+### REFEREES:
 
-In this section, I plot the win percentages over time of 4 teams (I only use 4 teams so the plot is readable). Win percentage is defined as (# of wins / # of matches). I only use teams that are in the data set for every season. This is an important bias. Teams that are in the data every season are consistently above a certain quality as they do not get relegated. Simply put, they are the best teams. I will plot the top 2 teams (best of the best) and the worst 2 teams (worst of the best).
+Let's take a closer look at the people we love to hate. I'm interested in seeing summary statistics about the refs as well as whether some officials are more stringent or lenient than others. Recall that there are `r length(unique(premier_data$Referee))` referees in this dataset.
+
+```{r referee_analyis, echo = F, include = F}
+
+  # Create a separate data table for this analysis.
+  foul_data = premier_data[, .(HomeTeam, AwayTeam, FTR, Referee, HF, AF, HY, AY, HR, AR)]
+    
+  # Compute the total number of fouls, yellow cards, and red cards for each match.
+  foul_data$match_foul = foul_data$HF + foul_data$AF
+  foul_data$match_yellow = foul_data$HY + foul_data$AY
+  foul_data$match_red = foul_data$HR + foul_data$AR
+  
+  # Count total fouls, yellow cards, red cards, and matches officiated for each referee.
+  foul_data[, 
+            ref_matches := .N, 
+            by = Referee]
+  foul_data[, ref_foul := sum(match_foul), 
+             by = Referee]
+  foul_data[, ref_yellow := sum(match_yellow), 
+             by = Referee]
+  foul_data[, ref_red := sum(match_red), 
+             by = Referee]
+  
+  # Find the average number of fouls, yellow cards, and red cards given by each referee per match.
+  foul_data[, 
+            avg_ref_foul := ref_foul / ref_matches, 
+            by = Referee]
+  foul_data[, 
+            avg_ref_yellow := ref_yellow / ref_matches, 
+            by = Referee]
+  foul_data[, 
+            avg_ref_red := ref_red / ref_matches, 
+            by = Referee]
+  
+  # Create data table with 1 row per referee.
+  referee_only = foul_data[, .(Referee, ref_matches, avg_ref_foul, avg_ref_yellow, avg_ref_red)]
+  setkey(referee_only)
+  referee_only = unique(referee_only)
+  
+  # Create 'exp_ref' for refs with 10 or more matches.
+  exp_ref = referee_only[ref_matches >= 10]
+
+```
+Minimum # of Matches Officiated: `r quantile(referee_only$ref_matches, 0)`
+Median # of Matches Officiated: `r quantile(referee_only$ref_matches, 0.5)`
+Maximum # of Matches Officiated: `r quantile(referee_only$ref_matches, 1)`
+
+In terms of experience, there are a wide variety of officials in the data. An EPL season for a team is roughly 38 games. Using this metric, the median referee has worked for `r round(quantile(referee_only$ref_matches, 0.5) / 38, 2)` seasons and the most experienced referee has been through `r round(quantile(referee_only$ref_matches, 1) / 38, 2)` seasons.
+
+For the rest of this section, I'll only look at referees with 10 or more matches under their belt to avoid outlier officials with low matches. There are a few officials who only have 1 match in the data but are near the top or bottom in terms of fouls/yellow cards/red cards handed out.
+
+Minimum Avg. Fouls Called per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_foul, 0)`
+Median Avg. Fouls Called per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_foul, 0.5)`
+Maximum Avg. Fouls Called per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_foul, 1)`
+
+The variation in average fouls per match doesn't look too extreme to me. Soccer fouls are quite common and often tactically necessary.
+
+Minimum Avg. Yellow Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_yellow, 0)`
+Median Avg. Yellow Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_yellow, 0.5)`
+Maximum Avg. Yellow Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_yellow, 1)`
+
+This distribution is, in absolute terms, is much smaller when compared to fouls. However, considering that 2 yellow cards gets you ejected from a match, these results are more noteworthy. I find it surprising that the official at the top of the distribution is often handing out enough yellow cards to fully eject 2 players per game.
+
+Minimum Avg. Red Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_red, 0)`
+Median Avg. Red Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_red, 0.5)`
+Maximum Avg. Red Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_red, 1)`
+
+Red cards, are perhaps reassuringly, pretty rare. Note that I'm not sure how this red card data is tallied. Particularly egregious fouls get an automatic red. But I'm unsure if a player's second yellow card is counted as a red.
+
+**Further Exploration**:
+
+* Is there a correlation between experience and the number of fouls/yellow cards/red cards handed out?
+* Are the referees at the top/bottom of the foul/yellow card/red card distribution actually more strict/lenient? Or did they just end up officiating more matches betweens teams that were more likely to commit fouls?
+* Are there any referees that just seem to have it out for a certain team?
+
+### BEST OF THE BEST AND WORST OF THE BEST:
+
+I want to look at the winning percentages over time of a subset of teams. In particular, I use 4 teams so the plot is readable. I also only use teams that have been in the data set for the entire 13 years. This is an important bias. Teams that have never been relegated are consistently above a certain quality. Simply put, they are the best teams. Out of these best teams, I look at the top (best of the best) and bottom (worst of the best) 2.
+
+Win percentage is defined as (# of wins / # of matches).
 
 ```{r best_worst, fig.width = 6, fig.height = 4.5, echo = F}
+  
+    # Remove unneeded objects.
+    rm(referee, referee_only, exp_ref)
    
     # Create 'winner' column in 'premier_data'. This helps with counting below.
     premier_data$winner = ifelse(premier_data$FTR == 'h', premier_data$HomeTeam, 
@@ -267,15 +349,18 @@ In this section, I plot the win percentages over time of 4 teams (I only use 4 t
      
 ```
 
-All 4 of these teams are part of the dominant 8 that are never relegated in this data set. I find it surprising that Everton and Aston Villa (especially Aston Villa) are consistently below a win percentage of 50%. It seems that these clubs haven't done well recently, but haven't done poorly enough to be relegated. Finally, it's interesting that all 4 teams on the plot do worse, in some cases much worse, in the 2015-2016 season than the 2014-2015 season.
+Given that none of these 4 teams are ever relegated, I find it surprising that Everton and Aston Villa (especially Aston Villa) consistently win less than 50% of their matches. It seems that these clubs haven't done well recently, but haven't done poorly enough to be relegated. Finally, it's interesting that all 4 teams do worse, in some cases much worse, in the 2015-2016 season than the 2014-2015 season.
 
 **Further Exploration**:
 
 * Conduct this analysis with more teams.
+* Why do these teams all do worse in 2015-2016 than in 2014-2015? What teams did well instead and why?
 
-### Clustering By Playing Style:
+### CLUSTERING BY PLAYING STYLE:
 
-In this section, I will K-means to cluster all `r length(unique(premier_data$HomeTeam))` teams in the data by average fouls per game and average shots on net percentage per game. The latter quantity is computed by dividing the shots on net by total shots. I only cluster by two dimensions to allow easy visualization. Since different teams have spent different amounts of time in the EPL, it's important to use average quantities (and not totals).
+I think it's interesting to think about what the data tells us about how different teams play. There are a variety of features relating to what could be called a team's style.
+
+Below, I use K-means to cluster all `r length(unique(premier_data$HomeTeam))` teams in the data by average fouls per game and average shots on net percentage per game. The latter is computed by dividing the shots on net by total shots. I only use 2 dimensions to allow easy visualization. Since different teams have spent different amounts of time in the EPL, it's important to use average quantities as opposed to totals.
 
 ```{r clustering, echo = F}
    
@@ -381,20 +466,25 @@ Oddly enough, RMarkdown output has different colors/shapes in different position
 **Further Exploration**:
 
 * Add more dimensions to the clustering.
+* See if certain playing styles are correlated with winning/losing records.
+* Do teams that never get relegated tend to have similar styles?
+* Do teams that are promoted into the EPL tend to have similar styles?
 
-### Match Outcome Prediction:
+### MATCH OUTCOME PREDICTION: CAN I PREDICT WINNERS?:
 
-In this section, I predict the outcome of matches (home win, away win, draw) using a random forest.   
+This might be the most interesting question that can be asked with sporting event data: can I predict the winner?
+
+I'll use a random forest to predict the outcome of matches (home win, away win, draw).   
 I use features (wins, average goals per match, average on-target shots per match, average corner kicks per match, average fouls per match, average yellow cards per match, average red cards per match) from the **same season** only.   
 Each feature is computed for the home and away teams of the match.
 
-For example, suppose team A is playing team B in season 2. I would compute all features for both teams using only previous matches in season 2.   
-This method means that I cannot obtain predictions for a team's 1st match of the season.  
-For a team's 2nd match of the season, I will obtain predictions using only data from that team's 1st match.
+For example, suppose team A plays team B in season 2. I would compute all features for both teams using only previous matches **in season 2**.   
+This method means I cannot make predictions for a team's 1st match of the season.  
+For a team's 2nd match of the season, I will make predictions using only data from that team's 1st match.
 For a team's 10th match, I obtain predictions using data from the 1st 9 matches.   
 So, each team's features are being updated every match.
 
-The 'randomforest' package provides a graphic showing which features are the most important according to 2 different metrics.
+The _randomforest_ package provides a graphic showing which features are the most important according to 2 different metrics. It doesn't play well with RMarkdown though, so I've commented it out. Feel free to go into _premier_league_explanatory_analysis.Rmd_ to view it.
 
 ```{r match_outcome_prediction_initial, echo = F}
   
@@ -432,7 +522,7 @@ The 'randomforest' package provides a graphic showing which features are the mos
   # Create random forest.
   match_rf = randomForest(match_model, 
                           data = feature_data_train,
-                          ntree = 250, 
+                          ntree = 251, 
                           importance = T)
 
   # Add OOB (out-of-bag) training set predictions to 'feature_data_train'.
@@ -448,18 +538,19 @@ The 'randomforest' package provides a graphic showing which features are the mos
                                                type = 'response'))
 
   # Show plot of variable importances.
-  varImpPlot(match_rf)
+  # This doesn't load well into the RMarkdown document and so I've commented it out.
+  #varImpPlot(match_rf)
 
 ```
 
-Creating a random forest out of the box, I obtain:   
+Using random forest out of the box, I obtain:   
 - training set error of `r 100 * round(nrow(feature_data_train[FTR != train_pred]) / nrow(feature_data_train), 4)`%   
 - OOB (out-of-bag) sample error `r 100 * round(nrow(feature_data_train[FTR != oob_pred]) / nrow(feature_data_train), 4)`% (I use this as a cross-validation error)   
 - test set error of `r 100 * round(nrow(feature_data_test[FTR != test_pred]) / nrow(feature_data_test), 4)`%
 
-The baseline model I compare against is predicting a home team win every time (this yields an error of `r 100 * round(nrow(feature_data_test[FTR != 'h']) / nrow(feature_data_test), 4)`% on the test set)
+The baseline model I can compare against is predicting a home team win every time (yielding a test set error rate of `r 100 * round(nrow(feature_data_test[FTR != 'h']) / nrow(feature_data_test), 4)`%).
 
-So, the random forest model is slightly better than the always predicting the home team wins. Below, I try to improve on the inital random forest model using feature selection and parameter tuning. The training set error (0%) indicates I have an overfitting problem.
+So, the random forest model is slightly better than always predicting the home team wins. Below, I try to improve on the initial model using feature selection and parameter tuning. The training set error (0%) indicates I have an overfitting problem.
 
 ```{r feature_selection, echo = F}
 
@@ -493,12 +584,12 @@ So, the random forest model is slightly better than the always predicting the ho
 
 ```
 
-Using backwards recursive feature selection, I see that using 12 features results in a slightly more accurate model
-than using the entire feature set. I will use this modified model for parameter tuning.
+Backwards recursive feature selection indicates that using 12 features gives me a model that is slightly better than using the entire feature set.     
+This is the feature set I'll use for parameter tuning.
 
 Note that I ran the feature selection code and noted the results, but it is now commented out. It makes the generation of this document take way too long.
 
-The 2 features that are removed are 'away_avg_foul' and 'home_avg_yellow'.
+The 2 features that are removed are _away_avg_foul_ and _home_avg_yellow_.
 
 ```{r parameter_tuning, echo = F}
 
@@ -506,79 +597,79 @@ The 2 features that are removed are 'away_avg_foul' and 'home_avg_yellow'.
   # I include findings from when this code was run, it's just not run every time.
 
   # Remove unneeded objects.
-  rm(training_rows)
+  #rm(training_rows)
 
   # Specify model found from feature selection.
-  best_model = FTR ~ home_team_wins + away_team_wins + home_avg_goals + away_avg_goals + home_avg_sot + away_avg_sot + home_avg_corner + away_avg_corner + home_avg_foul + away_avg_yellow + away_avg_red + home_avg_red
+  #best_model = FTR ~ home_team_wins + away_team_wins + home_avg_goals + away_avg_goals + home_avg_sot + away_avg_sot + home_avg_corner + away_avg_corner + home_avg_foul + away_avg_yellow + away_avg_red + home_avg_red
 
   # Set seed for reproducibility.
-  set.seed(25)
+  #set.seed(25)
 
   # Create 'parameters' data table containing all of the parameters combinations I want to try.
-  parameters = expand.grid(ntree = c(250, 500, 750), 
-                           mtry = c(2, 3, 4, 5), 
-                           nodesize = c(1, 5, 10))
+  #parameters = expand.grid(ntree = c(251, 501, 751), 
+  #                         mtry = c(2, 3, 4, 5), 
+  #                         nodesize = c(1, 3, 5, 7, 12, 17, 20))
 
   # Create columns in 'parameters' for training, OOB, and test set error.
-  parameters$train_error = rep(NA, 
-                               nrow(parameters))
-  parameters$oob_error = rep(NA, 
-                             nrow(parameters))
-  parameters$test_error = rep(NA, 
-                              nrow(parameters))
+  #parameters$train_error = rep(NA, 
+  #                             nrow(parameters))
+  #parameters$oob_error = rep(NA, 
+  #                           nrow(parameters))
+  #parameters$test_error = rep(NA, 
+  #                            nrow(parameters))
 
   # Loop through the rows of 'parameters' and fit a random forest for each combination of parameters.
-  for (i in 1:nrow(parameters))
-    {
+  #for (i in 1:nrow(parameters))
+  #  {
     
       # Keep track of loop progress.
-      print(i)
+  #    print(i)
     
       # Create random forest model.
-      rf_parameter_test = randomForest(best_model, 
-                                       data = feature_data_train, 
-                                       ntree = parameters$ntree[i],
-                                       mtry = parameters$mtry[i], 
-                                       nodesize = parameters$nodesize[i])
+  #    rf_parameter_test = randomForest(best_model, 
+  #                                     data = feature_data_train, 
+  #                                     ntree = parameters$ntree[i],
+  #                                     mtry = parameters$mtry[i], 
+  #                                     nodesize = parameters$nodesize[i])
       
       # Save predictions so I can compute error rates.
       
         # Add OOB training set predictions to 'feature_data_train'.
-        feature_data_train$oob_pred = rf_parameter_test$predicted
+  #      feature_data_train$oob_pred = rf_parameter_test$predicted
   
         # Generate predictions for training and test sets.
-        feature_data_train$train_pred = data.table(predict(rf_parameter_test, 
-                                                           newdata = feature_data_train, 
-                                                           type = 'response'))
-        feature_data_test$test_pred = data.table(predict(rf_parameter_test, 
-                                                         newdata = feature_data_test, 
-                                                         type = 'response'))
+  #      feature_data_train$train_pred = data.table(predict(rf_parameter_test, 
+  #                                                         newdata = feature_data_train, 
+  #                                                         type = 'response'))
+  #      feature_data_test$test_pred = data.table(predict(rf_parameter_test, 
+  #                                                       newdata = feature_data_test, 
+  #                                                       type = 'response'))
       
       # Compute training, OOB, and test set errors and store values in 'parameters'.
       
         # Training error.
-        parameters$train_error[i] = nrow(feature_data_train[FTR != train_pred]) / nrow(feature_data_train)
+  #      parameters$train_error[i] = nrow(feature_data_train[FTR != train_pred]) / nrow(feature_data_train)
       
         # OOB error.
-        parameters$oob_error[i] = nrow(feature_data_train[FTR != oob_pred]) / nrow(feature_data_train)
+  #      parameters$oob_error[i] = nrow(feature_data_train[FTR != oob_pred]) / nrow(feature_data_train)
       
         # Test error.
-        parameters$test_error[i] = nrow(feature_data_test[FTR != test_pred]) / nrow(feature_data_test)  
+  #      parameters$test_error[i] = nrow(feature_data_test[FTR != test_pred]) / nrow(feature_data_test)  
     
-    }
+  #  }
 
 ```
 
-I tune 3 parameters in the random forest: the # of trees, the # of variables considered at each split, and the minimum node size of terminal nodes.   
-Parameter tuning shows that the best values for [ntree, mtry, nodesize] are [, , ,] respectively.
+I tune 3 parameters: # of trees, # of variables considered at each split, and the minimum node size of terminal nodes.   
+Parameter tuning shows that the best values for [ntree, mtry, nodesize] are [251, 3, 20] respectively. This specification results in a test error of 47.82%, a modest improvement over the initial model.
 
-Note that I ran the parameter tuning code and noted the results, but it is now commented out. It makes the generation of this document take way too long.
+The training error for this specification is ~23% (as opposed to 0% for the original model), but obviously the refined model generalizes better.   
 
+Note that I ran the parameter tuning code and noted the results, but it is now commented out but included for reference. It makes the generation of this document take way too long.
 
+**Further Exploration**:
 
-
-
-More ideas:
-- referee analysis
-- look at datascience blog posts to see what else
+* Run parameter tuning with more parameters
+* Other modeling approaches
+* Incorporate new features and domain knowledge (possibly betting odds, features that represent injuries, team wealth, etc.)
    
