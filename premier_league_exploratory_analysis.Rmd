@@ -179,29 +179,29 @@ Let's take a closer look at the people we love to hate. I'm interested in seeing
   exp_ref = referee_only[ref_matches >= 10]
 
 ```
-Minimum # of Matches Officiated: `r quantile(referee_only$ref_matches, 0)`
-Median # of Matches Officiated: `r quantile(referee_only$ref_matches, 0.5)`
-Maximum # of Matches Officiated: `r quantile(referee_only$ref_matches, 1)`
+Minimum # of Matches Officiated: `r round(quantile(referee_only$ref_matches, 0), 2)`    
+Median # of Matches Officiated: `r round(quantile(referee_only$ref_matches, 0.5), 2)`    
+Maximum # of Matches Officiated: `r round(quantile(referee_only$ref_matches, 1), 2)`   
 
 In terms of experience, there are a wide variety of officials in the data. An EPL season for a team is roughly 38 games. Using this metric, the median referee has worked for `r round(quantile(referee_only$ref_matches, 0.5) / 38, 2)` seasons and the most experienced referee has been through `r round(quantile(referee_only$ref_matches, 1) / 38, 2)` seasons.
 
 For the rest of this section, I'll only look at referees with 10 or more matches under their belt to avoid outlier officials with low matches. There are a few officials who only have 1 match in the data but are near the top or bottom in terms of fouls/yellow cards/red cards handed out.
 
-Minimum Avg. Fouls Called per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_foul, 0)`
-Median Avg. Fouls Called per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_foul, 0.5)`
-Maximum Avg. Fouls Called per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_foul, 1)`
+Minimum Avg. Fouls Called per Match (Experienced Officials): `r round(quantile(exp_ref$avg_ref_foul, 0), 2)`   
+Median Avg. Fouls Called per Match (Experienced Officials): `r round(quantile(exp_ref$avg_ref_foul, 0.5), 2)`   
+Maximum Avg. Fouls Called per Match (Experienced Officials): `r round(quantile(exp_ref$avg_ref_foul, 1), 2)`   
 
 The variation in average fouls per match doesn't look too extreme to me. Soccer fouls are quite common and often tactically necessary.
 
-Minimum Avg. Yellow Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_yellow, 0)`
-Median Avg. Yellow Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_yellow, 0.5)`
-Maximum Avg. Yellow Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_yellow, 1)`
+Minimum Avg. Yellow Cards Given per Match (Experienced Officials): `r round(quantile(exp_ref$avg_ref_yellow, 0), 2)`   
+Median Avg. Yellow Cards Given per Match (Experienced Officials): `r round(quantile(exp_ref$avg_ref_yellow, 0.5), 2)`   
+Maximum Avg. Yellow Cards Given per Match (Experienced Officials): `r round(quantile(exp_ref$avg_ref_yellow, 1), 2)`   
 
 This distribution is, in absolute terms, is much smaller when compared to fouls. However, considering that 2 yellow cards gets you ejected from a match, these results are more noteworthy. I find it surprising that the official at the top of the distribution is often handing out enough yellow cards to fully eject 2 players per game.
 
-Minimum Avg. Red Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_red, 0)`
-Median Avg. Red Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_red, 0.5)`
-Maximum Avg. Red Cards Given per Match (Experienced Officials): `r quantile(exp_ref$avg_ref_red, 1)`
+Minimum Avg. Red Cards Given per Match (Experienced Officials): `r round(quantile(exp_ref$avg_ref_red, 0), 2)`   
+Median Avg. Red Cards Given per Match (Experienced Officials): `r round(quantile(exp_ref$avg_ref_red, 0.5), 2)`   
+Maximum Avg. Red Cards Given per Match (Experienced Officials): `r round(quantile(exp_ref$avg_ref_red, 1), 2)`   
 
 Red cards, are perhaps reassuringly, pretty rare. Note that I'm not sure how this red card data is tallied. Particularly egregious fouls get an automatic red. But I'm unsure if a player's second yellow card is counted as a red.
 
@@ -470,11 +470,11 @@ Oddly enough, RMarkdown output has different colors/shapes in different position
 * Do teams that never get relegated tend to have similar styles?
 * Do teams that are promoted into the EPL tend to have similar styles?
 
-### MATCH OUTCOME PREDICTION: CAN I PREDICT WINNERS?:
+### MATCH OUTCOME PREDICTION - CAN I PREDICT WINNERS?:
 
 This might be the most interesting question that can be asked with sporting event data: can I predict the winner?
 
-I'll use a random forest to predict the outcome of matches (home win, away win, draw).   
+I'll use a random forest to predict matche outcomes (home win, away win, draw).   
 I use features (wins, average goals per match, average on-target shots per match, average corner kicks per match, average fouls per match, average yellow cards per match, average red cards per match) from the **same season** only.   
 Each feature is computed for the home and away teams of the match.
 
@@ -483,8 +483,6 @@ This method means I cannot make predictions for a team's 1st match of the season
 For a team's 2nd match of the season, I will make predictions using only data from that team's 1st match.
 For a team's 10th match, I obtain predictions using data from the 1st 9 matches.   
 So, each team's features are being updated every match.
-
-The _randomforest_ package provides a graphic showing which features are the most important according to 2 different metrics. It doesn't play well with RMarkdown though, so I've commented it out. Feel free to go into _premier_league_explanatory_analysis.Rmd_ to view it.
 
 ```{r match_outcome_prediction_initial, echo = F}
   
@@ -536,11 +534,7 @@ The _randomforest_ package provides a graphic showing which features are the mos
   feature_data_test$test_pred = data.table(predict(match_rf, 
                                                newdata = feature_data_test, 
                                                type = 'response'))
-
-  # Show plot of variable importances.
-  # This doesn't load well into the RMarkdown document and so I've commented it out.
-  #varImpPlot(match_rf)
-
+  
 ```
 
 Using random forest out of the box, I obtain:   
@@ -667,9 +661,12 @@ The training error for this specification is ~23% (as opposed to 0% for the orig
 
 Note that I ran the parameter tuning code and noted the results, but it is now commented out but included for reference. It makes the generation of this document take way too long.
 
+So, what's the answer to question that started this section? Yes, technically. The refined model does better than the null model, chance, and the initial model. But would I bet my life savings on it? Definitely not.
+
 **Further Exploration**:
 
 * Run parameter tuning with more parameters
 * Other modeling approaches
 * Incorporate new features and domain knowledge (possibly betting odds, features that represent injuries, team wealth, etc.)
+* Fix matches to ensure 100% accuracy 
    
